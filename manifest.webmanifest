@@ -1,0 +1,15 @@
+{
+  "name": "MadCat Studio",
+  "short_name": "MadCat",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#15110f",
+  "theme_color": "#15110f",
+  "icons": [
+    {
+      "src": "icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
