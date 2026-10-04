@@ -83,11 +83,9 @@ function go(to) {
 }
 
 function esc(s) {
-  return String(s)
-    .replaceAll("&", "&")
-    .replaceAll("<", "<")
-    .replaceAll(">", ">")
-    .replaceAll('"', """);
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 }
 
 function load(key, fallback) {
@@ -100,7 +98,13 @@ function load(key, fallback) {
 }
 
 function save(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    window.alert("Could not save on this device. Your draft has not been sent. Please copy it before leaving.");
+    return false;
+  }
 }
 
 function nav(active) {
@@ -109,7 +113,7 @@ function nav(active) {
     ["/works", "Works"],
     ["/talk", "Talk"],
     ["/brief", "Brief"],
-    ["/account", "Account"],
+    ["/account", "Local profile"],
   ];
   return items
     .map(([to, label]) => {
@@ -244,14 +248,14 @@ function talk() {
     <header class="page-head">
       <p class="kicker">Desk</p>
       <h1 class="display">Speak with the studio</h1>
-      <p>Leave a note for MadCat Studio. The public desk receives it here on this device.</p>
+      <p>Leave a note for MadCat Studio. This draft stays on this device and is not sent to MadCat Studio.</p>
     </header>
     <div class="thread">${bubbles || `<p class="lede" style="color:var(--subtle)">A first sentence is enough.</p>`}</div>
     <form class="form" id="talk-form">
       <label>Write to the studio
         <textarea name="text" required placeholder="What should the studio hold?"></textarea>
       </label>
-      <button class="btn" type="submit">Send</button>
+      <button class="btn" type="submit">Save draft on this device</button>
     </form>
   `;
 }
@@ -259,13 +263,13 @@ function talk() {
 function brief() {
   const briefs = load("mcs.briefs", []);
   const list = briefs
-    .map((b) => `<article class="offer"><p class="price">Received</p><h3>${esc(b.name || "Brief")}</h3><p>${esc(b.intent)}</p></article>`)
+    .map((b) => `<article class="offer"><p class="price">Local draft — not sent</p><h3>${esc(b.name || "Brief")}</h3><p>${esc(b.intent)}</p></article>`)
     .join("");
   return `
     <header class="page-head">
       <p class="kicker">Brief</p>
       <h1 class="display">Start a brief</h1>
-      <p>The studio will answer from the public desk. Publication is a separate decision.</p>
+      <p>Save a brief draft on this device. This page does not send it to the studio.</p>
     </header>
     <form class="form" id="brief-form">
       <label>Name <input name="name" required /></label>
@@ -273,7 +277,7 @@ function brief() {
       <label>What should the studio hold?
         <textarea name="intent" required></textarea>
       </label>
-      <button class="btn" type="submit">Send the brief</button>
+      <button class="btn" type="submit">Save brief draft</button>
     </form>
     ${list ? `<section class="section"><h2 class="display">Your briefs</h2><div class="offers">${list}</div></section>` : ""}
   `;
@@ -284,24 +288,24 @@ function account() {
   if (session) {
     return `
       <header class="page-head">
-        <p class="kicker">Account</p>
+        <p class="kicker">Local profile</p>
         <h1 class="display">${esc(session.name)}</h1>
         <p>${esc(session.email)}</p>
       </header>
-      <p>This is the public studio session on this iPad. Headquarters stay closed.</p>
-      <div class="actions"><button class="btn secondary" id="signout" type="button">Sign out</button></div>
+      <p>This profile is stored on this device only. It is not an authenticated account.</p>
+      <div class="actions"><button class="btn secondary" id="signout" type="button">Clear local profile</button></div>
     `;
   }
   return `
     <header class="page-head">
-      <p class="kicker">Account</p>
-      <h1 class="display">Enter the studio</h1>
-      <p>Public studio only. The private headquarters are not on this surface.</p>
+      <p class="kicker">Local profile</p>
+      <h1 class="display">Save a local profile</h1>
+      <p>This optional profile is stored on this device. It does not create an account or sign you in.</p>
     </header>
     <form class="form" id="account-form">
       <label>Name <input name="name" required /></label>
       <label>Email <input name="email" type="email" required /></label>
-      <button class="btn" type="submit">Enter</button>
+      <button class="btn" type="submit">Save local profile</button>
     </form>
   `;
 }
@@ -354,9 +358,9 @@ function bind() {
       messages.push({ who: "me", text: String(text) });
       messages.push({
         who: "desk",
-        text: "The studio has the note. If this should become a brief, send it from Brief.",
+        text: "Draft saved on this device only. Nothing has been sent to the studio.",
       });
-      save("mcs.talk", messages);
+      if (!save("mcs.talk", messages)) return;
       render();
     });
   }
@@ -367,7 +371,7 @@ function bind() {
       const data = Object.fromEntries(new FormData(briefForm).entries());
       const briefs = load("mcs.briefs", []);
       briefs.unshift({ ...data, at: Date.now() });
-      save("mcs.briefs", briefs);
+      if (!save("mcs.briefs", briefs)) return;
       render();
     });
   }
@@ -375,7 +379,7 @@ function bind() {
   if (accountForm) {
     accountForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      save("mcs.session", Object.fromEntries(new FormData(accountForm).entries()));
+      if (!save("mcs.session", Object.fromEntries(new FormData(accountForm).entries()))) return;
       render();
     });
   }
